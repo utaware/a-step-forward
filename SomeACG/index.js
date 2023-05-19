@@ -1,27 +1,40 @@
 import axios from 'axios'
 
+import Qs from 'qs'
+
 import chalk from '#utils/chalk.js'
 
 class SomeACG {
   static host = 'https://www.someacg.top'
 
-  getApiListURL() {
-    return [SomeACG.host, 'api/list'].join('/')
+  constructor() {
+    this.currentPage = 1
+  }
+
+  getApiListURLWithPage(page) {
+    const suffix = '/api/list' + Qs.stringify({page}, {addQueryPrefix: true})
+    const url = SomeACG.host + suffix
+    return url
   }
 
   getApiDetailURL(id) {
     return [SomeACG.host, 'api/detail', id].join('/')
   }
 
-  requestList(page = 0) {
-    const url = this.getApiListURL()
-    console.log(chalk.red(url))
-    // axios.get(url, (res) => {
-    //   const {status, data} = res
-    //   if (status === 200) {
-    //     console.log(chalk.red('12345'))
-    //   }
-    // })
+  requestList() {
+    const {currentPage} = this
+    const url = this.getApiListURLWithPage(currentPage)
+    axios
+      .get(url)
+      .then((res) => {
+        const {status, data} = res
+        if (status === 200) {
+          const {body} = data
+        }
+      })
+      .catch((e) => {
+        console.log(chalk.red(e))
+      })
   }
 }
 
