@@ -8,6 +8,6 @@ export const filePath = url.fileURLToPath(metaPath)
 
 export const rootPath = path.dirname(filePath)
 
-export function resolve(args) {
+export function rootResolve(args) {
   return path.resolve(rootPath, args)
 }
