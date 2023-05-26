@@ -6,14 +6,14 @@ import Qs from 'qs'
 
 import chalk from '#utils/chalk.js'
 
-import {resolve} from '#root/project.js'
+import {rootResolve} from '#root/project.js'
 
 import {downloadImage} from '#utils/download.js'
 import {isValidArray} from '#utils/array/index.js'
 
 class SomeACG {
   static host = 'https://www.someacg.top'
-  static saveDirPath = resolve('./dist/SomeACG')
+  static saveDirPath = rootResolve('./dist/SomeACG')
 
   constructor() {
     this.currentPage = 1
