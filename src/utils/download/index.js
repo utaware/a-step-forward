@@ -4,11 +4,11 @@ import {EventEmitter} from 'node:events'
 
 import request from 'request'
 
-export function downloadFile(url, dest) {
+export function downloadFile(options, dest) {
   const event = new EventEmitter()
   const stream = fs.createWriteStream(dest)
-
-  request(url)
+  // http://mrdede.com/?p=3536
+  request(options)
     .on('response', (response) => {
       const total = Number(response.headers['content-length'] || 0)
 

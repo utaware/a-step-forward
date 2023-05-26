@@ -3,9 +3,14 @@ import path from 'path'
 import fse from 'fs-extra'
 import axios from 'axios'
 import {JSDOM} from 'jsdom'
+import bytes from 'bytes'
+import {consola} from 'consola'
 
 import {rootResolve} from '#root/project.js'
-import {downloadImage} from '#utils/download.js'
+import {downloadFile} from '#utils/download/index.js'
+
+import EnhanceSet from '#root/src/utils/set/index.js'
+import chalk from 'chalk'
 
 class TTloli {
   static host = 'https://www.ttloli.com/'
@@ -15,8 +20,10 @@ class TTloli {
     this.limit = limit
     this.count = 1
     this.sleepTime = sleepTime
-    this.lib = new Set()
+    this.downloadFiles = new EnhanceSet()
+    this.hasExistFiles = new EnhanceSet()
     this.ensureSaveDirPath()
+    this.resolveHasExistFile()
   }
 
   request() {
@@ -25,7 +32,7 @@ class TTloli {
       .get(TTloli.host)
       .then(({status, data}) => {
         if (status === 200) {
-          this.getImageContent(data)
+          this.getImageUrlList(data)
           setTimeout(() => {
             this.count++
             this.start()
@@ -42,25 +49,27 @@ class TTloli {
   start() {
     const {count, limit} = this
     if (count > limit) {
-      console.log(this.lib)
+      this.downloadAllImages()
     } else {
       this.request()
     }
   }
 
-  getImageContent(html) {
+  getImageUrlList(html) {
     const {window} = new JSDOM(html)
     const {document} = window
     const els = document.querySelectorAll('.cb-slideshow li span')
-    const images = Array.from(els, (el) => {
+    els.forEach((el) => {
       const {backgroundImage} = window.getComputedStyle(el)
-      const url = this.getImageURL(backgroundImage)
-      this.lib.add(url)
-      return url
+      const url = this.getImageURLofContent(backgroundImage)
+      const filename = this.getImageFileName(url)
+      if (!this.hasExistFiles.has(filename)) {
+        this.downloadFiles.add(url)
+      }
     })
   }
 
-  getImageURL(url) {
+  getImageURLofContent(url) {
     const reg = /url\((?<img>.*)\)/
     const result = reg.exec(url)
     return result.groups.img
@@ -76,24 +85,49 @@ class TTloli {
   }
 
   ensureSaveDirPath() {
-    fse.ensureDir(TTloli.saveDirPath)
+    fse.ensureDirSync(TTloli.saveDirPath)
   }
 
-  downloadAllImages(images) {
-    images.forEach((url) => {
-      this.saveImageToLocalDir(url)
-    })
+  resolveHasExistFile() {
+    const dir = fse.readdirSync(TTloli.saveDirPath)
+    this.hasExistFiles.update(dir)
   }
 
-  saveImageToLocalDir(url) {
+  downloadAllImages = () => {
+    const current = this.downloadFiles.shift()
+    if (current) {
+      this.saveImageToLocalDir(current, this.downloadAllImages)
+    } else {
+      console.log('download all')
+    }
+  }
+
+  saveImageToLocalDir(url, callback) {
     const fileName = this.getImageFileName(url)
     const filePath = this.getSaveFilePath(fileName)
-    downloadImage(url, filePath)
-      .then(() => {
-        console.log(`${fileName} save succcess`)
+    downloadFile(
+      {
+        url,
+        headers: {
+          Connection: 'close',
+        },
+      },
+      filePath,
+    )
+      .on('start', () => {
+        consola.start(chalk.yellow(`${fileName} is starting download`))
       })
-      .catch(() => {
-        console.log(`${fileName} save fail`)
+      .on('downloading', (current, total) => {
+        const [c, t] = [current, total].map((v) => bytes(v))
+        process.stdout.write(`${fileName} download process with ${c}/${t} \r`)
+      })
+      .on('end', () => {
+        process.stdout.write('\n')
+        consola.success(chalk.blue(`${fileName} has download success`))
+        callback()
+      })
+      .on('error', () => {
+        consola.error(chalk.red(`${fileName} has download fail`))
       })
   }
 }
